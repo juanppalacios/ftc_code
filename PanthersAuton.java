@@ -27,17 +27,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
-/**
- * todo: add limits to the lift
- * todo: fix the wrist code
- * todo: 
- * 
- */
-
 package org.firstinspires.ftc.teamcode;
 
-// rev duo imports
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
@@ -45,314 +36,169 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
-
-import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-
-/*
- * gamepad1 is the mech-wheel driver
- * gamepad2 is the arm operator
- */
+import org.firstinspires.ftc.robotcore.external.JavaUtil;
 
 @TeleOp(name="Panthers Auton", group="Iterative Opmode")
-public class PanthersAuton extends OpMode
-{
-    // Declare OpMode members.
+public class PanthersAuton extends OpMode {
     private ElapsedTime runtime = new ElapsedTime();
 
-    // driver mech-wheels
-    private DcMotor backLeftMotor   = null;
-    private DcMotor backRightMotor  = null;
-    private DcMotor frontLeftMotor  = null;
+    private DcMotor backLeftMotor = null;
+    private DcMotor backRightMotor = null;
+    private DcMotor frontLeftMotor = null;
     private DcMotor frontRightMotor = null;
+    private double y;
+    private double x;
+    private float rx;
+    private double denominator;
 
-    // driver lift
-    private DcMotor robotLiftMotor = null;
+    private DcMotor lift = null;
+    private final int minLiftPosition = 0;
+    private final int maxLiftPosition = 100;
+    private int litPosition = 0;
 
-    // operator motors
     private DcMotor armLeft = null;
     private DcMotor armRight = null;
+    private final int minArmPosition = 0;
+    private final int maxArmPosition = 100;
+    private final int armHomePosition = 20;
+    private int armPosition = 0;
+
     private Servo wrist = null;
+    private final double wristHomePosition = 0.75;
+    private double wristPosition = 0.50;
+
     private Servo gripper = null;
-
-    private boolean wheelsEnabled = true;
-    private boolean armEnabled = true;
-
-    private boolean manualMode = false;
-    private double armSetpoint = 0.0;
-
-    private final double armManualDeadband = 0.03;
-
     private final double gripperClosedPosition = 0.65;
     private final double gripperOpenPosition = 0.20;
-    private final double wristUpPosition = 0.90;
-    private final double wristDownPosition = 0.25;
 
-    private final int armHomePosition = 5;
-    private final int armIntakePosition = 45;
-    private final int armScorePosition = 200;
-    private final int armShutdownThreshold = 0;
-    
-    private final int LIFT_HOME_POSITION = 10;
-
-    private int liftPosition = 0;
-    private int gotoLiftPosition = 0;
-    
-    private final int LIFT_MAXIMUM_HEIGHT    = 20;    // stops the lift from going too high
-    private final int robotLiftPosition_UP   = 100;
-    private final int robotLiftPosition_DOWN = 30;
-    private final int LIFT_MINIMUM_HEIGHT    = -100;    // stops the lift from going too low
-
-    /*
-     * Code to run ONCE when the driver hits INIT
-     */
     @Override
     public void init() {
-        telemetry.addData("Status", "Initialized");
+        backLeftMotor = hardwareMap.get(DcMotor.class, "backLeftMotor");
+        backLeftMotor.setDirection(DcMotor.Direction.FORWARD);
+        backLeftMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
-        // enable our driver's mech-wheels
-        if (wheelsEnabled){
-            backLeftMotor   = hardwareMap.get(DcMotor.class, "backLeftMotor");
-            backRightMotor  = hardwareMap.get(DcMotor.class, "backRightMotor");
-            frontLeftMotor  = hardwareMap.get(DcMotor.class, "frontLeftMotor");
-            frontRightMotor = hardwareMap.get(DcMotor.class, "frontRightMotor");
+        backRightMotor = hardwareMap.get(DcMotor.class, "backRightMotor");
+        backRightMotor.setDirection(DcMotor.Direction.FORWARD);
+        backRightMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
-            backLeftMotor.setDirection(DcMotor.Direction.FORWARD);
-            backRightMotor.setDirection(DcMotor.Direction.FORWARD);
-            frontLeftMotor.setDirection(DcMotor.Direction.FORWARD);
-            frontRightMotor.setDirection(DcMotor.Direction.REVERSE);
+        frontLeftMotor = hardwareMap.get(DcMotor.class, "frontLeftMotor");
+        frontLeftMotor.setDirection(DcMotor.Direction.FORWARD);
+        frontLeftMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
-            backLeftMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-            backRightMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-            frontLeftMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-            frontRightMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-            
-            robotLiftMotor = hardwareMap.get(DcMotor.class, "robotLiftMotor");
-            robotLiftMotor.setDirection(DcMotor.Direction.FORWARD);
-            robotLiftMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-        }
+        frontRightMotor = hardwareMap.get(DcMotor.class, "frontRightMotor");
+        frontRightMotor.setDirection(DcMotor.Direction.REVERSE);
+        frontRightMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
-        // enable our operator's arm
-        if (armEnabled)
-        {
-            armLeft  = hardwareMap.get(DcMotor.class, "armLeft");
-            armRight = hardwareMap.get(DcMotor.class, "armRight");
-            gripper = hardwareMap.get(Servo.class, "gripper");
-            wrist = hardwareMap.get(Servo.class, "wrist");
+        lift = hardwareMap.get(DcMotor.class, "robotLiftMotor");
+        lift.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
-            armLeft.setDirection(DcMotor.Direction.FORWARD);
-            armRight.setDirection(DcMotor.Direction.REVERSE);
+        armLeft = hardwareMap.get(DcMotor.class, "armLeft");
+        armLeft.setDirection(DcMotor.Direction.FORWARD);
+        armLeft.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        armLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        armLeft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        armLeft.setPower(0.0);
 
-            armLeft.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-            armRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        armRight = hardwareMap.get(DcMotor.class, "armRight");
+        armRight.setDirection(DcMotor.Direction.REVERSE);
+        armRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        armRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        armRight.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        armRight.setPower(0.0);
 
-            armLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-            armRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        wrist = hardwareMap.get(Servo.class, "wrist");
+        wrist.setPosition(wristHomePosition);
 
-            armLeft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-            armRight.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        gripper = hardwareMap.get(Servo.class, "gripper");
+        gripper.setPosition(gripperOpenPosition);
 
-            armLeft.setPower(0.0);
-            armRight.setPower(0.0);
-        }
-
-        telemetry.addData("Status", "Initialized");
+        telemetry.addData("Panthers Status", "Initialized");
     }
 
-    /*
-     * Code to run REPEATEDLY after the driver hits INIT, but before they hit PLAY
-     */
     @Override
     public void init_loop() {
     }
 
-    /*
-     * Code to run ONCE when the driver hits PLAY
-     */
     @Override
     public void start() {
         runtime.reset();
 
-        if (wheelsEnabled){
-            // robotLiftMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-            // robotLiftMotor.setTargetPosition(LIFT_HOME_POSITION);
-            // robotLiftMotor.setPower(1.0);
-            // robotLiftMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        }
+        lift.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        lift.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
-        if (armEnabled)
-        {
-            armLeft.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-            armRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-            armLeft.setTargetPosition(armHomePosition);
-            armRight.setTargetPosition(armHomePosition);
-            armLeft.setPower(1.0);
-            armRight.setPower(1.0);
-            armLeft.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-            armRight.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        }
+        armLeft.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        armRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        armLeft.setTargetPosition(armHomePosition);
+        armRight.setTargetPosition(armHomePosition);
+        armLeft.setPower(1.0);
+        armRight.setPower(1.0);
+        armLeft.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        armRight.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+
+        wrist.setPosition(wristHomePosition);
+        gripper.setPosition(gripperOpenPosition);
     }
 
-    /*
-     * Code to run REPEATEDLY after the driver hits PLAY but before they hit STOP
-     */
     @Override
     public void loop() {
-        double manualArmPower;
+        double armPower;
         double leftPower;
         double rightPower;
         double liftPower;
 
-        if (wheelsEnabled)
-        {
-            //DRIVE
-            double drive = -gamepad1.left_stick_y;
-            double turn  =  gamepad1.right_stick_x;
-            leftPower    = Range.clip(drive + turn, -1.0, 1.0);
-            rightPower   = Range.clip(drive - turn, -1.0, 1.0);
+        // ... (existing code)
 
-            backLeftMotor.setPower(leftPower);
-            backRightMotor.setPower(rightPower);
-            frontLeftMotor.setPower(leftPower);
-            frontRightMotor.setPower(rightPower);
+        /*
+         * AUTONOMOUS ACTIONS ---------------------------------------
+         */
 
-            // driver pushes the y-button to lift up the lift with some maximum height
-            if (gamepad1.y && (robotLiftMotor.getCurrentPosition() < LIFT_MAXIMUM_HEIGHT)) {
-            // if (gamepad1.y) { // uncomment this for free running lift upwards
-                gotoLiftPosition = gotoLiftPosition + 1;
-                robotLiftMotor.setDirection(DcMotor.Direction.FORWARD);
-                robotLiftMotor.setTargetPosition(robotLiftPosition_UP);
-                robotLiftMotor.setPower(1.0);
-                robotLiftMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-            }
-            
-            // driver pushes the a-button to lower the lift with some minimum height
-            if (gamepad1.a && (gotoLiftPosition > LIFT_MINIMUM_HEIGHT)) {
-            // if (gamepad1.a){ // uncomment this for free running lift downwards
-                gotoLiftPosition = gotoLiftPosition - 1;
-                robotLiftMotor.setDirection(DcMotor.Direction.REVERSE);
-                robotLiftMotor.setTargetPosition(robotLiftPosition_DOWN);
-                robotLiftMotor.setPower(-1.0);
-                robotLiftMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-            }
-            
-            // otherwise, do not move the lift
-            if (!gamepad1.y && !gamepad1.a) {
-                robotLiftMotor.setPower(0.0);
-            }
+        // Move left a bit
+        moveLeft();
+        sleep(1000);  // Sleep for 1 second
 
-        }
+        // Drive forward for three seconds
+        driveForward();
+        sleep(3000);  // Sleep for 3 seconds
 
-        if (armEnabled)
-        {
-            //ARM & WRIST
-            manualArmPower = gamepad2.right_trigger - gamepad2.left_trigger;
-            if (Math.abs(manualArmPower) > armManualDeadband) {
-                if (!manualMode) {
-                    armLeft.setPower(0.0);
-                    armRight.setPower(0.0);
-                    armLeft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-                    armRight.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-                    manualMode = true;
-                }
-                armLeft.setPower(manualArmPower);
-                armRight.setPower(manualArmPower);
-            }
-            else {
-                if (manualMode) {
-                    armLeft.setTargetPosition(armLeft.getCurrentPosition());
-                    armRight.setTargetPosition(armRight.getCurrentPosition());
-                    armLeft.setPower(0.5);
-                    armRight.setPower(0.5);
-                    armLeft.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-                    armRight.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-                    manualMode = false;
-                }
+        // Stop all motors
+        stopMotors();
 
-                //preset buttons
-                if (gamepad2.a) {
-                    armLeft.setTargetPosition(armHomePosition);
-                    armRight.setTargetPosition(armHomePosition);
-                    armLeft.setPower(0.5);
-                    armRight.setPower(0.5);
-                    armLeft.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-                    armRight.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-                    wrist.setPosition(wristUpPosition);
-                }
-                else if (gamepad2.b) {
-                    armLeft.setTargetPosition(armIntakePosition);
-                    armRight.setTargetPosition(armIntakePosition);
-                    armLeft.setPower(0.5);
-                    armRight.setPower(0.5);
-                    armLeft.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-                    armRight.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-                    wrist.setPosition(wristDownPosition);
-                }
-                else if (gamepad2.y) {
-                    armLeft.setTargetPosition(armScorePosition);
-                    armRight.setTargetPosition(armScorePosition);
-                    armLeft.setPower(1.0);
-                    armRight.setPower(1.0);
-                    armLeft.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-                    armRight.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-                    wrist.setPosition(wristUpPosition);
-                }
-            }
-
-            //Re-zero encoder button
-            if (gamepad2.start) {
-                armLeft.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-                armRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-                armLeft.setPower(0.0);
-                armRight.setPower(0.0);
-                manualMode = false;
-            }
-
-            //Watchdog to shut down motor once the arm reaches the home position
-            if (!manualMode &&
-            armLeft.getMode() == DcMotor.RunMode.RUN_TO_POSITION &&
-            armLeft.getTargetPosition() <= armShutdownThreshold &&
-            armLeft.getCurrentPosition() <= armShutdownThreshold
-            ) {
-                armLeft.setPower(0.0);
-                armRight.setPower(0.0);
-                armLeft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-                armRight.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-            }
-
-            //GRIPPER
-            if (gamepad2.left_bumper || gamepad2.right_bumper) {
-                gripper.setPosition(gripperOpenPosition);
-            }
-            else {
-                gripper.setPosition(gripperClosedPosition);
-            }
-        }
-
-        liftPosition = robotLiftMotor.getCurrentPosition();
-        telemetry.addData("Lift Pos:", liftPosition);
-        telemetry.addData("Tracked Lift Pos:", gotoLiftPosition);
-        // telemetry.update();
+        // ... (existing code)
 
         telemetry.addData("Status", "Run Time: " + runtime.toString());
-        // telemetry.addData("Gamepad", "drive (%.2f), turn (%.2f)", drive, turn);
-        // telemetry.addData("Motors", "left (%.2f), right (%.2f)", leftPower, rightPower);
-        // telemetry.addData("Manual Power", manualArmPower);
-        telemetry.addData("Arm Pos:",
-            "left = " +
-            ((Integer)armLeft.getCurrentPosition()).toString() +
-            ", right = " +
-            ((Integer)armRight.getCurrentPosition()).toString());
-        telemetry.addData("Arm Pos:",
-            "left = " +
-            ((Integer)armLeft.getTargetPosition()).toString() +
-            ", right = " +
-            ((Integer)armRight.getTargetPosition()).toString());
+        telemetry.addData("Arm Position", armLeft.getCurrentPosition());
+        telemetry.addData("Arm Power", armLeft.getPower());
+        telemetry.addData("Wrist Position", wristPosition);
+        telemetry.addData("Wrist Power", wristPower);
+        telemetry.addData("Lift Position", liftPosition);
+        telemetry.addData("Lift Power", liftPower);
+        telemetry.update();
     }
 
-    /*
-     * Code to run ONCE after the driver hits STOP
-     */
     @Override
-    public void stop(){}
+    public void stop() {
+        gripper.setPosition(gripperOpenPosition);
+        wrist.setPosition(wristHomePosition);
+    }
 
+    private void moveLeft() {
+        backLeftMotor.setPower(-0.5);
+        backRightMotor.setPower(0.5);
+        frontLeftMotor.setPower(0.5);
+        frontRightMotor.setPower(-0.5);
+    }
+
+    private void driveForward() {
+        backLeftMotor.setPower(0.5);
+        backRightMotor.setPower(0.5);
+        frontLeftMotor.setPower(0.5);
+        frontRightMotor.setPower(0.5);
+    }
+
+    private void stopMotors() {
+        backLeftMotor.setPower(0);
+        backRightMotor.setPower(0);
+        frontLeftMotor.setPower(0);
+        frontRightMotor.setPower(0);
+    }
 }

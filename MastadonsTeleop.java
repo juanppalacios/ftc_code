@@ -65,8 +65,8 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
  * ------------------------------------------------------------------
  */
 
-@TeleOp(name="Panthers Teleop", group="Iterative Opmode")
-public class PanthersTeleop extends OpMode
+@TeleOp(name="Mastadons Teleop", group="Iterative Opmode")
+public class MastadonsTeleop extends OpMode
 {
     // Declare OpMode members.
     private ElapsedTime runtime = new ElapsedTime();
@@ -129,15 +129,15 @@ public class PanthersTeleop extends OpMode
         backLeftMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
         backRightMotor = hardwareMap.get(DcMotor.class, "backRightMotor");
-        backRightMotor.setDirection(DcMotor.Direction.FORWARD);
+        backRightMotor.setDirection(DcMotor.Direction.REVERSE);
         backRightMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
         frontLeftMotor = hardwareMap.get(DcMotor.class, "frontLeftMotor");
-        frontLeftMotor.setDirection(DcMotor.Direction.FORWARD);
+        frontLeftMotor.setDirection(DcMotor.Direction.REVERSE);
         frontLeftMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
         frontRightMotor = hardwareMap.get(DcMotor.class, "frontRightMotor");
-        frontRightMotor.setDirection(DcMotor.Direction.REVERSE);
+        frontRightMotor.setDirection(DcMotor.Direction.FORWARD);
         frontRightMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
         /*
@@ -176,7 +176,7 @@ public class PanthersTeleop extends OpMode
         gripper = hardwareMap.get(Servo.class, "gripper");
         gripper.setPosition(gripperOpenPosition);
 
-        telemetry.addData("Panthers Status", "Initialized");
+        telemetry.addData("Mastadons Status", "Initialized");
     }
 
     /*
